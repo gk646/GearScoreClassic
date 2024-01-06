@@ -1,3 +1,8 @@
+![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
+![WoW Classic](https://img.shields.io/badge/WoW%20Classic-v1.15.0-9cf.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+
+
 # GearScoreClassic
 
 GearScoreClassic is a maintained addon for World of Warcraft Classic. It is designed to calculate and display a gear score (GS) for both your character and any character you inspect. 
