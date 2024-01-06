@@ -3,9 +3,9 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 
-# GearScoreClassic
+# GearScoreClassic+
 
-GearScoreClassic is a maintained addon for World of Warcraft Classic. It is designed to calculate and display a gear score (GS) for both your character and any character you inspect. 
+GearScoreClassic+ is a maintained addon for World of Warcraft Classic. It is designed to calculate and display a gear score (GS) for both your character and any character you inspect. 
 ## Purpose
 
 The primary purpose of GearScoreClassic is to offer a general metric that represents the overall quality of a player's gear. This metric, known as Gear Score (GS), is calculated based on various attributes of each equipped item, including its item level, enchantments, and specific slot modifiers. The addon simplifies the process of assessing gear, making it easier for players to make informed decisions about equipment.
