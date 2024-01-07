@@ -2,110 +2,162 @@ if not IsAddOnLoaded("Blizzard_InspectUI") then
     LoadAddOn("Blizzard_InspectUI")
 end
 
-local Test = true
+
+local Test = false
 local fontPath = "Fonts\\FRIZQT__.TTF"  -- Standard WoW font
 local fontSize = 11  -- Adjust the font size as needed
-local globalScale = 1.7
+local GLOBAL_SCALE = 1.7
+local MAX_GEAR_SCORE = 350  -- Maximum reachable gearscore
+local gearScoreCache = {}
+local enchantmentModifier = 1.05  -- 5% increase for enchanted items
 
 local itemTypeInfo = {
-    ["INVTYPE_RELIC"] = {0.3164, false},
-    ["INVTYPE_TRINKET"] = {0.5625, false},
-    ["INVTYPE_2HWEAPON"] = {2.000, true},
-    ["INVTYPE_WEAPONMAINHAND"] = {1.0000, true},
-    ["INVTYPE_WEAPONOFFHAND"] = {1.0000, true},
-    ["INVTYPE_RANGED"] = {0.3164, true},
-    ["INVTYPE_THROWN"] = {0.3164, false},
-    ["INVTYPE_RANGEDRIGHT"] = {0.3164, false},
-    ["INVTYPE_SHIELD"] = {1.0000, true},
-    ["INVTYPE_WEAPON"] = {1.0000, true},
-    ["INVTYPE_HOLDABLE"] = {1.0000, false},
-    ["INVTYPE_HEAD"] = {1.0000, true},
-    ["INVTYPE_NECK"] = {0.5625, false},
-    ["INVTYPE_SHOULDER"] = {0.7500, true},
-    ["INVTYPE_CHEST"] = {1.0000, true},
-    ["INVTYPE_ROBE"] = {1.0000, true},
-    ["INVTYPE_WAIST"] = {0.7500, false},
-    ["INVTYPE_LEGS"] = {1.0000, true},
-    ["INVTYPE_FEET"] = {0.75, true},
-    ["INVTYPE_WRIST"] = {0.5625, true},
-    ["INVTYPE_HAND"] = {0.7500, true},
-    ["INVTYPE_FINGER"] = {0.5625, false},
-    ["INVTYPE_CLOAK"] = {0.5625, true},
-    ["INVTYPE_BODY"] = {0, false},
-    ["INVTYPE_TABARD"] = {0, false},
+    ["INVTYPE_RELIC"] = { 0.3164, false },
+    ["INVTYPE_TRINKET"] = { 0.5625, false },
+    ["INVTYPE_2HWEAPON"] = { 2.000, true },
+    ["INVTYPE_WEAPONMAINHAND"] = { 1.0000, true },
+    ["INVTYPE_WEAPONOFFHAND"] = { 1.0000, true },
+    ["INVTYPE_RANGED"] = { 0.3164, true },
+    ["INVTYPE_THROWN"] = { 0.3164, false },
+    ["INVTYPE_RANGEDRIGHT"] = { 0.3164, false },
+    ["INVTYPE_SHIELD"] = { 1.0000, true },
+    ["INVTYPE_WEAPON"] = { 1.0000, true },
+    ["INVTYPE_HOLDABLE"] = { 1.0000, false },
+    ["INVTYPE_HEAD"] = { 1.0000, true },
+    ["INVTYPE_NECK"] = { 0.5625, false },
+    ["INVTYPE_SHOULDER"] = { 0.7500, true },
+    ["INVTYPE_CHEST"] = { 1.0000, true },
+    ["INVTYPE_ROBE"] = { 1.0000, true },
+    ["INVTYPE_WAIST"] = { 0.7500, false },
+    ["INVTYPE_LEGS"] = { 1.0000, true },
+    ["INVTYPE_FEET"] = { 0.75, true },
+    ["INVTYPE_WRIST"] = { 0.5625, true },
+    ["INVTYPE_HAND"] = { 0.7500, true },
+    ["INVTYPE_FINGER"] = { 0.5625, false },
+    ["INVTYPE_CLOAK"] = { 0.5625, true },
+    ["INVTYPE_BODY"] = { 0, false },
+    ["INVTYPE_TABARD"] = { 0, false },
 }
-
 
 local rarityModifiers = {
     -- Assuming rarity is a number from 1 (common) to 5 (legendary)
-    [0] = 2.25,  -- Poor
-    [1] = 2.0,  -- Common
-    [2] = 2,  -- Uncommon
-    [3] = 1.8,  -- Rare
-    [4] = 1.6,  -- Epic
-    [5] = 1.4,  -- Legendary
+    [0] = 3.5, -- Poor
+    [1] = 3, -- Common
+    [2] = 2.5, -- Uncommon 
+    [3] = 1.76, -- Rare
+    [4] = 1.6, -- Epic
+    [5] = 1.4, -- Legendary
 }
 
-local enchantmentModifier = 1.05  -- 5% increase for enchanted items
 
 
 -- Character Window
-local scoreFrame = CreateFrame("Frame", "GearScoreDisplay", CharacterFrame)
+local scoreFrame = CreateFrame("Frame", "GearScoreDisplay", PaperDollFrame)
 scoreFrame:SetSize(100, 30)
-scoreFrame:SetPoint("BOTTOMLEFT", CharacterFrame, "BOTTOMLEFT", 70, 230)
+scoreFrame:SetPoint("BOTTOMLEFT", PaperDollFrame, "BOTTOMLEFT", 0, 0)
 
 scoreFrame.text = scoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 scoreFrame.text:SetFont(fontPath, fontSize)
 scoreFrame.text:SetTextColor(1, 1, 1)
-scoreFrame.text:SetPoint("LEFT", scoreFrame, "LEFT", 0, 0)
+scoreFrame.text:SetPoint("BOTTOMLEFT", scoreFrame, "LEFT", 73, 215)
+scoreFrame.text:SetText("GearScore")
 
 scoreFrame.avgItemLevelText = scoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 scoreFrame.avgItemLevelText:SetFont(fontPath, fontSize)
 scoreFrame.avgItemLevelText:SetTextColor(1, 1, 1)
-scoreFrame.avgItemLevelText:SetPoint("BOTTOMRIGHT", scoreFrame, "RIGHT", 115, 0)
+scoreFrame.avgItemLevelText:SetPoint("BOTTOMLEFT", scoreFrame.text, "RIGHT", 125, 0)
+
+scoreFrame.scoreValueText = scoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+scoreFrame.scoreValueText:SetFont(fontPath, fontSize)
+scoreFrame.scoreValueText:SetTextColor(1, 1, 1)
+scoreFrame.scoreValueText:SetPoint("BOTTOMLEFT", scoreFrame.text, "BOTTOMLEFT", 0, 10)
 
 
 
 -- Inspect Window   
 local inspectScoreFrame = CreateFrame("Frame", "InspectGearScoreDisplay", InspectFrame)
 inspectScoreFrame:SetSize(100, 30)
-inspectScoreFrame:SetPoint("BOTTOMLEFT", InspectFrame, "BOTTOMLEFT", 55, 110)
+inspectScoreFrame:SetPoint("BOTTOMLEFT", InspectFrame, "BOTTOMLEFT", 0, 0)
 
 inspectScoreFrame.text = inspectScoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 inspectScoreFrame.text:SetFont(fontPath, fontSize)
 inspectScoreFrame.text:SetTextColor(1, 1, 1)
-inspectScoreFrame.text:SetPoint("LEFT", inspectScoreFrame, "LEFT", 15, 30)
+inspectScoreFrame.text:SetPoint("BOTTOMLEFT", inspectScoreFrame, "LEFT", 73, 130)
+inspectScoreFrame.text:SetText("GearScore")
 
 inspectScoreFrame.avgItemLevelText = inspectScoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 inspectScoreFrame.avgItemLevelText:SetFont(fontPath, fontSize)
 inspectScoreFrame.avgItemLevelText:SetTextColor(1, 1, 1)
-inspectScoreFrame.avgItemLevelText:SetPoint("BOTTOMRIGHT", inspectScoreFrame, "RIGHT", 140, 20)
+inspectScoreFrame.avgItemLevelText:SetPoint("BOTTOMLEFT", inspectScoreFrame, "RIGHT", 165, 130)
+
+inspectScoreFrame.scoreValueText = inspectScoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+inspectScoreFrame.scoreValueText:SetFont(fontPath, fontSize)
+inspectScoreFrame.scoreValueText:SetTextColor(1, 1, 1)
+inspectScoreFrame.scoreValueText:SetPoint("BOTTOMLEFT", inspectScoreFrame.text, "BOTTOMLEFT", 0, 10)
 
 
 
+local function GetColorForGearScore(gearScore)
+    local percentile = gearScore / MAX_GEAR_SCORE * 100
+
+    if percentile >= 100 then
+        return 0.90, 0.80, 0.50  -- Gold
+    elseif percentile >= 99 then
+        return 0.89, 0.47, 0.65  -- Pink
+    elseif percentile >= 95 then
+        return 1.00, 0.50, 0.00  -- Orange
+    elseif percentile >= 75 then
+        return 0.63, 0.21, 0.93  -- Purple
+    elseif percentile >= 50 then
+        return 0.00, 0.44, 1.00  -- Blue
+    elseif percentile >= 25 then
+        return 0.12, 1.00, 0.00  -- Green
+    else
+        return 0.40, 0.40, 0.40  -- Grey
+    end
+end
+
+local function GetColorForGearScoreText(gearScore)
+    local percentile = gearScore / MAX_GEAR_SCORE * 100
+
+    if percentile >= 100 then
+        return "|cffe5cc80"  -- Gold for 100 and above
+    elseif percentile >= 99 then
+        return "|cffe268a8"  -- Pink for 99
+    elseif percentile >= 95 then
+        return "|cffff8000"  -- Orange for 95-98
+    elseif percentile >= 75 then
+        return "|cffa335ee"  -- Purple for 75-94
+    elseif percentile >= 50 then
+        return "|cff0070ff"  -- Blue for 50-74
+    elseif percentile >= 25 then
+        return "|cff1eff00"  -- Green for 25-49
+    else
+        return "|cff666666"  -- Grey for 0-24
+    end
+end
 
 local function GetEnchantIDFromItemLink(itemLink)
     local enchantID = itemLink:match("item:%d+:(%d+)")
     return tonumber(enchantID)  -- Convert to number, will be nil if no enchantment
 end
 
-
 --Calculates the score of a single individual item
 local function CalculateItemScore(itemLink)
-    if not itemLink then return 0 end
+    if not itemLink then
+        return 0
+    end
     local _, _, itemRarity, itemLevel, _, _, _, _, itemEquipLoc, _, _, _, _, _ = GetItemInfo(itemLink)
     local slotModifier = itemTypeInfo[itemEquipLoc][1] or 1
     local rarityModifier = rarityModifiers[itemRarity] or 1
-    print(itemLevel)
+    
     local enchantID = GetEnchantIDFromItemLink(itemLink)
     -- Check for enchantment
     local enchantModifier = enchantID and enchantID > 0 and 1.05 or 1
 
     -- Calculate score for this item
-    return (itemLevel / rarityModifier) * slotModifier * enchantModifier * globalScale
+    return (itemLevel / rarityModifier) * slotModifier * enchantModifier * GLOBAL_SCALE
 end
-
-
 
 local function CalculateGearScoreAndAverageItemLevel(unit)
     local totalScore = 0
@@ -134,19 +186,75 @@ local function CalculateGearScoreAndAverageItemLevel(unit)
     return totalScore, avgItemLevel
 end
 
-
 local function UpdateFrame(frame, unit)
     local score, avgItemLevel = CalculateGearScoreAndAverageItemLevel(unit)
-    frame.text:SetText(math.floor(score + 0.5).."\nGS")
-    frame.avgItemLevelText:SetText(math.floor(avgItemLevel + 0.5) .. "\niLvl")
+    local r, g, b = GetColorForGearScore(score)
 
-    if Test then
-        frame.text:ClearAllPoints()
-        frame.text:SetPoint("LEFT", frame, "LEFT", 0, 40)  -- Shifted up by 30 pixels
+    -- Set the numerical gear score with color
+    frame.scoreValueText:SetTextColor(r, g, b)
+    frame.scoreValueText:SetText(math.floor(score + 0.5))
 
-        frame.avgItemLevelText:ClearAllPoints()
-        frame.avgItemLevelText:SetPoint("BOTTOMRIGHT", frame, "RIGHT", 115, 20)  -- Shifted up by 30 pixels
+    -- Set the average item level text
+    frame.avgItemLevelText:SetText(math.floor(avgItemLevel + 0.5) .. "\niLvl:")
+end
+
+local function CalculateAndCacheGearScore(unit)
+    local gearScore, avgItemLevel = CalculateGearScoreAndAverageItemLevel(unit)
+    local guid = UnitGUID(unit)
+    if guid and gearScore and avgItemLevel then
+        local cachedData = gearScoreCache[guid]
+        if not cachedData or cachedData[1] ~= gearScore or cachedData[2] ~= avgItemLevel then
+            -- Update cache if it's a new entry or if the gear score or avg item level has changed
+            gearScoreCache[guid] = {gearScore, avgItemLevel}
+        end
     end
+    return gearScore, avgItemLevel
+end
+
+
+local function AddGearScoreToTooltip(tooltip)
+    local _, unit = tooltip:GetUnit()
+    if unit and UnitIsPlayer(unit) then
+        local guid = UnitGUID(unit)
+        local gearScore, avgItemLevel
+
+        -- First, try to use the cached data if it exists
+        local cachedData = gearScoreCache[guid]
+        if cachedData then
+            gearScore, avgItemLevel = unpack(cachedData)
+        end
+
+        -- Next, check if you are close enough to inspect and update the cache
+        if CheckInteractDistance(unit, 1) then
+            local newGearScore, newAvgItemLevel = CalculateGearScoreAndAverageItemLevel(unit)
+            if newGearScore and newGearScore > 0 then
+                gearScore, avgItemLevel = newGearScore, newAvgItemLevel
+                gearScoreCache[guid] = {newGearScore, newAvgItemLevel}  -- Update cache
+            end
+        end
+
+        -- Finally, display the gear score if available
+        if gearScore and gearScore > 0 then
+            local color = GetColorForGearScoreText(gearScore)
+            tooltip:AddLine("Gear Score: " .. color .. math.floor(gearScore + 0.5))
+            tooltip:Show()  -- Force tooltip to refresh
+        end
+    end
+end
+
+
+
+local function OnMouseoverUnit()
+    if GameTooltip:IsVisible() then
+        local _, unit = GameTooltip:GetUnit()
+        if unit and UnitIsPlayer(unit) then
+            AddGearScoreToTooltip(GameTooltip)
+        end
+    end
+end
+
+local function OnPlayerEquipmentChanged()
+    UpdateFrame(scoreFrame, "player")
 end
 
 
@@ -154,16 +262,27 @@ end
 -- Event handling
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-frame:RegisterEvent("PLAYER_LOGIN")
+frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+frame:SetScript("OnEvent", OnMouseoverUnit)
+
 
 frame:SetScript("OnEvent", function(self, event, ...)
-    if event == "PLAYER_LOGIN" or event == "PLAYER_EQUIPMENT_CHANGED" then
-        UpdateFrame(scoreFrame, "player")
+    if event == "PLAYER_EQUIPMENT_CHANGED" then
+        OnPlayerEquipmentChanged()
     end
+end)
+
+
+CharacterFrame:HookScript("OnShow", function()
+    UpdateFrame(scoreFrame, "player")
 end)
 
 InspectFrame:HookScript("OnShow", function()
     if InspectFrame.unit then
         UpdateFrame(inspectScoreFrame, InspectFrame.unit)
     end
+end)
+
+GameTooltip:HookScript("OnTooltipSetUnit", function(self)
+    AddGearScoreToTooltip(self)
 end)
