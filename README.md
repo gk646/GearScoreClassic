@@ -2,7 +2,7 @@
 ![WoW Classic](https://img.shields.io/badge/WoW%20Classic-v1.15.0-9cf.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-### Download from the official [CurseForge webiste](https://www.curseforge.com/wow/addons/gearscoreclassic)
+### Download from the official [CurseForge website](https://www.curseforge.com/wow/addons/gearscoreclassic)
 
 
 ### This addon can be used instead of other popular gearscore addons as it produces similar values but fixes some bugs in the calculation process.  
