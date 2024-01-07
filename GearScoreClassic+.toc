@@ -1,0 +1,9 @@
+## Interface: 11500
+## Title: GearScoreClassic+
+## Notes: Calculates gearscore, a general metric for itemization strength
+## Version: 0.2
+## Author: gk646
+## SavedVariables: GearScoreClassic+
+
+
+GearScoreCalc.lua
