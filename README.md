@@ -2,6 +2,7 @@
 ![WoW Classic](https://img.shields.io/badge/WoW%20Classic-v1.15.0-9cf.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
+### Download from the official [CurseForge webiste](https://www.curseforge.com/wow/addons/gearscoreclassic)
 
 # GearScoreClassic+
 
