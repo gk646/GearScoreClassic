@@ -10,9 +10,7 @@ local GLOBAL_SCALE = 1.7
 local MAX_GEAR_SCORE = 350  -- Maximum reachable gearscore
 local gearScoreCache = {}
 local enchantmentModifier = 1.05  -- 5% increase for enchanted items
-local inspectQueue = {}
-local isProcessingQueue = false
-local lastInspection = nil
+local isManualInspect = false
 
 local itemTypeInfo = {
     ["INVTYPE_RELIC"] = { 0.3164, false },
@@ -99,6 +97,13 @@ inspectScoreFrame.scoreValueText:SetTextColor(1, 1, 1)
 inspectScoreFrame.scoreValueText:SetPoint("BOTTOMLEFT", inspectScoreFrame.text, "BOTTOMLEFT", 0, 10)
 
 
+local function OnInspectFrameShow()
+    isManualInspect = true
+end
+
+local function OnInspectFrameHide()
+    isManualInspect = false
+end
 
 local function GetColorForGearScore(gearScore)
     local percentile = gearScore / MAX_GEAR_SCORE * 100
@@ -166,9 +171,13 @@ local function CalculateGearScoreAndAverageItemLevel(unit)
     local totalScore = 0
     local totalItemLevel = 0
     local itemCount = 0
+    local itemMissing = false
 
     -- Loop through all the equipment slots
     for i = 1, 19 do
+        if itemMissing then
+            break
+        end
         -- Skip the body (shirt, slot 4) and tabard (slot 19)
         if i ~= 4 and i ~= 19 then
             local itemLink = GetInventoryItemLink(unit, i)
@@ -181,28 +190,18 @@ local function CalculateGearScoreAndAverageItemLevel(unit)
                     totalItemLevel = totalItemLevel + itemLevel
                     itemCount = itemCount + 1
                 end
+            elseif  GetInventoryItemID(unit, i) then
+                itemMissing = true
             end
         end
     end
 
     local avgItemLevel = itemCount > 0 and (totalItemLevel / itemCount) or 0
-    return totalScore, avgItemLevel
-end
-
-local function UpdateFrame(frame, unit)
-    local score, avgItemLevel = CalculateGearScoreAndAverageItemLevel(unit)
-    local r, g, b = GetColorForGearScore(score)
-
-    -- Set the numerical gear score with color
-    frame.scoreValueText:SetTextColor(r, g, b)
-    frame.scoreValueText:SetText(math.floor(score + 0.5))
-
-    -- Set the average item level text
-    frame.avgItemLevelText:SetText(math.floor(avgItemLevel + 0.5) .. "\niLvl:")
+    return totalScore, avgItemLevel, itemMissing
 end
 
 local function CalculateAndCacheGearScore(unit)
-    local gearScore, avgItemLevel = CalculateGearScoreAndAverageItemLevel(unit)
+    local gearScore, avgItemLevel, itemMissing = CalculateGearScoreAndAverageItemLevel(unit)
     local guid = UnitGUID(unit)
     if guid and gearScore and avgItemLevel then
         local cachedData = gearScoreCache[guid]
@@ -211,7 +210,19 @@ local function CalculateAndCacheGearScore(unit)
             gearScoreCache[guid] = {gearScore, avgItemLevel}
         end
     end
-    return gearScore, avgItemLevel
+    return gearScore, avgItemLevel, itemMissing
+end
+
+local function UpdateFrame(frame, unit)
+    local score, avgItemLevel,_ = CalculateAndCacheGearScore(unit)
+    local r, g, b = GetColorForGearScore(score)
+
+    -- Set the numerical gear score with color
+    frame.scoreValueText:SetTextColor(r, g, b)
+    frame.scoreValueText:SetText(math.floor(score + 0.5))
+
+    -- Set the average item level text
+    frame.avgItemLevelText:SetText(math.floor(avgItemLevel + 0.5) .. "\niLvl:")
 end
 
 local function OnPlayerEquipmentChanged()
@@ -239,12 +250,18 @@ local function AddGearScoreToTooltip(tooltip, unit)
 end
 
 local function OnInspectReady(inspectGUID)
-    if UnitGUID(lastInspection) == inspectGUID then
-        local firstTime = gearScoreCache[inspectGUID] == nil
-        CalculateAndCacheGearScore(lastInspection)
+    if lastInspection and UnitGUID(lastInspection) == inspectGUID then
+        local  gs , avg , itemMissing = CalculateGearScoreAndAverageItemLevel(lastInspection)
         -- Check if the tooltip is still showing the same unit
-        if  firstTime then
+        if itemMissing then
+            NotifyInspect(lastInspection)
+            C_Timer.After(0.1, function()
+                OnInspectReady(inspectGUID)
+            end)
+        else 
+            gearScoreCache[inspectGUID] = {gs, avg}
             AddGearScoreToTooltip(GameTooltip, lastInspection)
+            lastInspection = nil
         end
     end
 end
@@ -259,13 +276,14 @@ frame:SetScript("OnEvent", function(self, event,inspectGUID)
     if event == "PLAYER_EQUIPMENT_CHANGED" then
         OnPlayerEquipmentChanged()
     elseif event == "INSPECT_READY" then
-        C_Timer.After(0.1, function()
-        OnInspectReady(inspectGUID)
+        C_Timer.After(0.3, function()
+            OnInspectReady(inspectGUID)
         end)
     end
 end)
 
-
+InspectFrame:HookScript("OnShow", OnInspectFrameShow)
+InspectFrame:HookScript("OnHide", OnInspectFrameHide)
 
 CharacterFrame:HookScript("OnShow", function()
     UpdateFrame(scoreFrame, "player")
@@ -280,17 +298,21 @@ end)
 
 GameTooltip:HookScript("OnTooltipSetUnit", function(self)
     local _, unit = self:GetUnit()
-    if unit and UnitIsPlayer(unit) then  
+    if unit and UnitIsPlayer(unit) then
+        local guid = UnitGUID(unit)
+        local cachedData = gearScoreCache[guid]
+
         lastInspection = unit
+        print("added tooltip")
         AddGearScoreToTooltip(self, unit)
-        -- Delay the NotifyInspect call
-        C_Timer.After(0.1, function()
-            -- Check if the unit is still the same after the delay
-            local _, currentUnit = self:GetUnit()
-            if currentUnit and UnitGUID(currentUnit) == UnitGUID(lastInspection) then
-                NotifyInspect(lastInspection)
+        
+        if not isManualInspect  then
+            if CheckInteractDistance(unit, "1") and not cachedData then
+                NotifyInspect(unit)
             end
-        end)
+        end
+       
     end
 end)
+
 
