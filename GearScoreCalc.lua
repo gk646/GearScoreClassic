@@ -10,6 +10,9 @@ local GLOBAL_SCALE = 1.7
 local MAX_GEAR_SCORE = 350  -- Maximum reachable gearscore
 local gearScoreCache = {}
 local enchantmentModifier = 1.05  -- 5% increase for enchanted items
+local inspectQueue = {}
+local isProcessingQueue = false
+local lastInspection = nil
 
 local itemTypeInfo = {
     ["INVTYPE_RELIC"] = { 0.3164, false },
@@ -65,7 +68,7 @@ scoreFrame.text:SetText("GearScore")
 scoreFrame.avgItemLevelText = scoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 scoreFrame.avgItemLevelText:SetFont(fontPath, fontSize)
 scoreFrame.avgItemLevelText:SetTextColor(1, 1, 1)
-scoreFrame.avgItemLevelText:SetPoint("BOTTOMLEFT", scoreFrame.text, "RIGHT", 125, 0)
+scoreFrame.avgItemLevelText:SetPoint("BOTTOMLEFT", scoreFrame.text, "LEFT", 185, -5)
 
 scoreFrame.scoreValueText = scoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 scoreFrame.scoreValueText:SetFont(fontPath, fontSize)
@@ -211,10 +214,12 @@ local function CalculateAndCacheGearScore(unit)
     return gearScore, avgItemLevel
 end
 
+local function OnPlayerEquipmentChanged()
+    UpdateFrame(scoreFrame, "player")
+end
 
-local function AddGearScoreToTooltip(tooltip)
-    local _, unit = tooltip:GetUnit()
-    if unit and UnitIsPlayer(unit) then
+local function AddGearScoreToTooltip(tooltip, unit)
+    if unit then
         local guid = UnitGUID(unit)
         local gearScore, avgItemLevel
 
@@ -222,15 +227,6 @@ local function AddGearScoreToTooltip(tooltip)
         local cachedData = gearScoreCache[guid]
         if cachedData then
             gearScore, avgItemLevel = unpack(cachedData)
-        end
-
-        -- Next, check if you are close enough to inspect and update the cache
-        if CheckInteractDistance(unit, 1) then
-            local newGearScore, newAvgItemLevel = CalculateGearScoreAndAverageItemLevel(unit)
-            if newGearScore and newGearScore > 0 then
-                gearScore, avgItemLevel = newGearScore, newAvgItemLevel
-                gearScoreCache[guid] = {newGearScore, newAvgItemLevel}  -- Update cache
-            end
         end
 
         -- Finally, display the gear score if available
@@ -242,35 +238,33 @@ local function AddGearScoreToTooltip(tooltip)
     end
 end
 
-
-
-local function OnMouseoverUnit()
-    if GameTooltip:IsVisible() then
-        local _, unit = GameTooltip:GetUnit()
-        if unit and UnitIsPlayer(unit) then
-            AddGearScoreToTooltip(GameTooltip)
+local function OnInspectReady(inspectGUID)
+    if UnitGUID(lastInspection) == inspectGUID then
+        local firstTime = gearScoreCache[inspectGUID] == nil
+        CalculateAndCacheGearScore(lastInspection)
+        -- Check if the tooltip is still showing the same unit
+        if  firstTime then
+            AddGearScoreToTooltip(GameTooltip, lastInspection)
         end
     end
 end
-
-local function OnPlayerEquipmentChanged()
-    UpdateFrame(scoreFrame, "player")
-end
-
 
 
 -- Event handling
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-frame:SetScript("OnEvent", OnMouseoverUnit)
+frame:RegisterEvent("INSPECT_READY")
 
-
-frame:SetScript("OnEvent", function(self, event, ...)
+frame:SetScript("OnEvent", function(self, event,inspectGUID)
     if event == "PLAYER_EQUIPMENT_CHANGED" then
         OnPlayerEquipmentChanged()
+    elseif event == "INSPECT_READY" then
+        C_Timer.After(0.1, function()
+        OnInspectReady(inspectGUID)
+        end)
     end
 end)
+
 
 
 CharacterFrame:HookScript("OnShow", function()
@@ -283,6 +277,20 @@ InspectFrame:HookScript("OnShow", function()
     end
 end)
 
+
 GameTooltip:HookScript("OnTooltipSetUnit", function(self)
-    AddGearScoreToTooltip(self)
+    local _, unit = self:GetUnit()
+    if unit and UnitIsPlayer(unit) then  
+        lastInspection = unit
+        AddGearScoreToTooltip(self, unit)
+        -- Delay the NotifyInspect call
+        C_Timer.After(0.1, function()
+            -- Check if the unit is still the same after the delay
+            local _, currentUnit = self:GetUnit()
+            if currentUnit and UnitGUID(currentUnit) == UnitGUID(lastInspection) then
+                NotifyInspect(lastInspection)
+            end
+        end)
+    end
 end)
+
