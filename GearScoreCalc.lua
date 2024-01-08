@@ -11,6 +11,10 @@ local MAX_GEAR_SCORE = 350  -- Maximum reachable gearscore
 local gearScoreCache = {}
 local enchantmentModifier = 1.05  -- 5% increase for enchanted items
 local isManualInspect = false
+local MAX_RETRIES = 3
+local INSPECT_RETRY_DELAY = 0.2
+local inspectRetryCount = {}
+local TOTAL_EQUIPPABLE_SLOTS = 17
 
 local itemTypeInfo = {
     ["INVTYPE_RELIC"] = { 0.3164, false },
@@ -44,7 +48,7 @@ local rarityModifiers = {
     -- Assuming rarity is a number from 1 (common) to 5 (legendary)
     [0] = 3.5, -- Poor
     [1] = 3, -- Common
-    [2] = 2.5, -- Uncommon 
+    [2] = 2.5, -- Uncommon
     [3] = 1.76, -- Rare
     [4] = 1.6, -- Epic
     [5] = 1.4, -- Legendary
@@ -75,7 +79,7 @@ scoreFrame.scoreValueText:SetPoint("BOTTOMLEFT", scoreFrame.text, "BOTTOMLEFT", 
 
 
 
--- Inspect Window   
+-- Inspect Window
 local inspectScoreFrame = CreateFrame("Frame", "InspectGearScoreDisplay", InspectFrame)
 inspectScoreFrame:SetSize(100, 30)
 inspectScoreFrame:SetPoint("BOTTOMLEFT", InspectFrame, "BOTTOMLEFT", 0, 0)
@@ -153,50 +157,55 @@ end
 --Calculates the score of a single individual item
 local function CalculateItemScore(itemLink)
     if not itemLink then
-        return 0
+        return 0, 0
     end
-    local _, _, itemRarity, itemLevel, _, _, _, _, itemEquipLoc, _, _, _, _, _ = GetItemInfo(itemLink)
+    local _, _, itemRarity, itemLevel, _, _, _, _, itemEquipLoc = GetItemInfo(itemLink)
     local slotModifier = itemTypeInfo[itemEquipLoc][1] or 1
     local rarityModifier = rarityModifiers[itemRarity] or 1
-    
+
     local enchantID = GetEnchantIDFromItemLink(itemLink)
     -- Check for enchantment
-    local enchantModifier = enchantID and enchantID > 0 and 1.05 or 1
+    local enchantModifier = enchantID and enchantID > 0 and enchantmentModifier or 1
+
+    -- Double item level for two-handed weapons
+    local adjustedItemLevel = itemLevel
+    if itemEquipLoc == "INVTYPE_2HWEAPON" then
+        adjustedItemLevel = itemLevel * 2
+    end
 
     -- Calculate score for this item
-    return (itemLevel / rarityModifier) * slotModifier * enchantModifier * GLOBAL_SCALE
+    return (itemLevel / rarityModifier) * slotModifier * enchantModifier * GLOBAL_SCALE, adjustedItemLevel
 end
+
 
 local function CalculateGearScoreAndAverageItemLevel(unit)
     local totalScore = 0
     local totalItemLevel = 0
-    local itemCount = 0
     local itemMissing = false
 
     -- Loop through all the equipment slots
     for i = 1, 19 do
-        if itemMissing then
-            break
-        end
         -- Skip the body (shirt, slot 4) and tabard (slot 19)
         if i ~= 4 and i ~= 19 then
             local itemLink = GetInventoryItemLink(unit, i)
             if itemLink then
-                local itemScore = CalculateItemScore(itemLink)
+                local itemScore, iLevel = CalculateItemScore(itemLink)
                 totalScore = totalScore + itemScore
 
-                local _, _, _, itemLevel = GetItemInfo(itemLink)
-                if itemLevel and itemLevel > 0 then
-                    totalItemLevel = totalItemLevel + itemLevel
-                    itemCount = itemCount + 1
+                if iLevel and iLevel > 0 then
+                    totalItemLevel = totalItemLevel + iLevel
                 end
-            elseif  GetInventoryItemID(unit, i) then
-                itemMissing = true
+            else
+                -- Check if the slot is not legitimately empty
+                local itemID = GetInventoryItemID(unit, i)
+                if itemID then
+                    itemMissing = true
+                end
             end
         end
     end
 
-    local avgItemLevel = itemCount > 0 and (totalItemLevel / itemCount) or 0
+    local avgItemLevel = (totalItemLevel / TOTAL_EQUIPPABLE_SLOTS) or 0
     return totalScore, avgItemLevel, itemMissing
 end
 
@@ -251,20 +260,29 @@ end
 
 local function OnInspectReady(inspectGUID)
     if lastInspection and UnitGUID(lastInspection) == inspectGUID then
-        local  gs , avg , itemMissing = CalculateGearScoreAndAverageItemLevel(lastInspection)
-        -- Check if the tooltip is still showing the same unit
+        local gs, avg, itemMissing = CalculateGearScoreAndAverageItemLevel(lastInspection)
+
         if itemMissing then
-            NotifyInspect(lastInspection)
-            C_Timer.After(0.1, function()
-                OnInspectReady(inspectGUID)
-            end)
-        else 
+            inspectRetryCount[inspectGUID] = (inspectRetryCount[inspectGUID] or 0) + 1
+
+            if inspectRetryCount[inspectGUID] <= MAX_RETRIES then
+                C_Timer.After(INSPECT_RETRY_DELAY, function()
+                    NotifyInspect(lastInspection)
+                end)
+            else
+                gearScoreCache[inspectGUID] = {gs, avg}
+                AddGearScoreToTooltip(GameTooltip, lastInspection)
+                lastInspection = nil
+                inspectRetryCount[inspectGUID] = nil
+            end
+        else
             gearScoreCache[inspectGUID] = {gs, avg}
             AddGearScoreToTooltip(GameTooltip, lastInspection)
-            lastInspection = nil
+            inspectRetryCount[inspectGUID] = nil
         end
     end
 end
+
 
 
 -- Event handling
@@ -276,13 +294,12 @@ frame:SetScript("OnEvent", function(self, event,inspectGUID)
     if event == "PLAYER_EQUIPMENT_CHANGED" then
         OnPlayerEquipmentChanged()
     elseif event == "INSPECT_READY" then
-        C_Timer.After(0.3, function()
+        C_Timer.After(0.2, function()
             OnInspectReady(inspectGUID)
         end)
     end
 end)
 
-InspectFrame:HookScript("OnShow", OnInspectFrameShow)
 InspectFrame:HookScript("OnHide", OnInspectFrameHide)
 
 CharacterFrame:HookScript("OnShow", function()
@@ -290,6 +307,7 @@ CharacterFrame:HookScript("OnShow", function()
 end)
 
 InspectFrame:HookScript("OnShow", function()
+    OnInspectFrameShow()
     if InspectFrame.unit then
         UpdateFrame(inspectScoreFrame, InspectFrame.unit)
     end
@@ -303,16 +321,14 @@ GameTooltip:HookScript("OnTooltipSetUnit", function(self)
         local cachedData = gearScoreCache[guid]
 
         lastInspection = unit
-        print("added tooltip")
         AddGearScoreToTooltip(self, unit)
-        
+
         if not isManualInspect  then
             if CheckInteractDistance(unit, "1") and not cachedData then
                 NotifyInspect(unit)
             end
         end
-       
+
     end
 end)
-
 
