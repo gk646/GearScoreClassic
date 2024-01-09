@@ -1,8 +1,11 @@
 ## Interface: 11500
 ## Title: GearScoreClassic+
 ## Notes: Calculates gearscore, a general metric for itemization strength
-## Version: 1.1
+## Version: 1.2
 ## Author: gk646
-## SavedVariables: GearScoreClassic+
+## SavedVariables: PVP_HISTORY
 
 GearScoreCalc.lua
+PVPTracker.lua
+WarCraftLogsToolTip.lua
+Main.lua

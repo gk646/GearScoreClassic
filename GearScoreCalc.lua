@@ -2,18 +2,23 @@ if not IsAddOnLoaded("Blizzard_InspectUI") then
     LoadAddOn("Blizzard_InspectUI")
 end
 
+GearScoreCalc = {}
 
-local Test = false
+IS_MANUAL_INSPECT_ACTIVE = false
+GEAR_SCORE_CACHE = {}
+
+-- Create frames for character and inspect windows
+scoreFrame = nil
+inspectScoreFrame = nil
+
 local fontPath = "Fonts\\FRIZQT__.TTF"  -- Standard WoW font
-local fontSize = 11  -- Adjust the font size as needed
+local FONT_SIZE = 11  -- Adjust the font size as needed
 local GLOBAL_SCALE = 1.7
 local MAX_GEAR_SCORE = 350  -- Maximum reachable gearscore
-local gearScoreCache = {}
-local enchantmentModifier = 1.05  -- 5% increase for enchanted items
-local isManualInspect = false
+local GS_ENCHANT_MODIFIER = 1.05  -- 5% increase for enchanted items
 local MAX_RETRIES = 3
 local INSPECT_RETRY_DELAY = 0.2
-local inspectRetryCount = {}
+local INSPECT_RETRIES = {}
 local TOTAL_EQUIPPABLE_SLOTS = 17
 
 local itemTypeInfo = {
@@ -54,61 +59,35 @@ local rarityModifiers = {
     [5] = 1.4, -- Legendary
 }
 
+local function CreateGearScoreFrame(name, parentFrame, point, relativePoint, xOffset, yOffset, textXOffset, textYOffset)
+    local frame = CreateFrame("Frame", name, parentFrame)
+    frame:SetSize(100, 30)
+    frame:SetPoint(point, parentFrame, relativePoint, xOffset, yOffset)
 
+    frame.text = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.text:SetFont(fontPath, FONT_SIZE)
+    frame.text:SetTextColor(1, 1, 1)
+    frame.text:SetPoint("BOTTOMLEFT", frame, "LEFT", textXOffset, textYOffset)
+    frame.text:SetText("GearScore")
 
--- Character Window
-local scoreFrame = CreateFrame("Frame", "GearScoreDisplay", PaperDollFrame)
-scoreFrame:SetSize(100, 30)
-scoreFrame:SetPoint("BOTTOMLEFT", PaperDollFrame, "BOTTOMLEFT", 0, 0)
+    frame.avgItemLevelText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.avgItemLevelText:SetFont(fontPath, FONT_SIZE)
+    frame.avgItemLevelText:SetTextColor(1, 1, 1)
+    frame.avgItemLevelText:SetPoint("BOTTOMLEFT", frame.text, "LEFT", 185, -5)
 
-scoreFrame.text = scoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-scoreFrame.text:SetFont(fontPath, fontSize)
-scoreFrame.text:SetTextColor(1, 1, 1)
-scoreFrame.text:SetPoint("BOTTOMLEFT", scoreFrame, "LEFT", 73, 215)
-scoreFrame.text:SetText("GearScore")
+    frame.scoreValueText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    frame.scoreValueText:SetFont(fontPath, FONT_SIZE)
+    frame.scoreValueText:SetTextColor(1, 1, 1)
+    frame.scoreValueText:SetPoint("BOTTOMLEFT", frame.text, "BOTTOMLEFT", 0, 10)
 
-scoreFrame.avgItemLevelText = scoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-scoreFrame.avgItemLevelText:SetFont(fontPath, fontSize)
-scoreFrame.avgItemLevelText:SetTextColor(1, 1, 1)
-scoreFrame.avgItemLevelText:SetPoint("BOTTOMLEFT", scoreFrame.text, "LEFT", 185, -5)
-
-scoreFrame.scoreValueText = scoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-scoreFrame.scoreValueText:SetFont(fontPath, fontSize)
-scoreFrame.scoreValueText:SetTextColor(1, 1, 1)
-scoreFrame.scoreValueText:SetPoint("BOTTOMLEFT", scoreFrame.text, "BOTTOMLEFT", 0, 10)
-
-
-
--- Inspect Window
-local inspectScoreFrame = CreateFrame("Frame", "InspectGearScoreDisplay", InspectFrame)
-inspectScoreFrame:SetSize(100, 30)
-inspectScoreFrame:SetPoint("BOTTOMLEFT", InspectFrame, "BOTTOMLEFT", 0, 0)
-
-inspectScoreFrame.text = inspectScoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-inspectScoreFrame.text:SetFont(fontPath, fontSize)
-inspectScoreFrame.text:SetTextColor(1, 1, 1)
-inspectScoreFrame.text:SetPoint("BOTTOMLEFT", inspectScoreFrame, "LEFT", 73, 130)
-inspectScoreFrame.text:SetText("GearScore")
-
-inspectScoreFrame.avgItemLevelText = inspectScoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-inspectScoreFrame.avgItemLevelText:SetFont(fontPath, fontSize)
-inspectScoreFrame.avgItemLevelText:SetTextColor(1, 1, 1)
-inspectScoreFrame.avgItemLevelText:SetPoint("BOTTOMLEFT", inspectScoreFrame, "RIGHT", 165, 130)
-
-inspectScoreFrame.scoreValueText = inspectScoreFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-inspectScoreFrame.scoreValueText:SetFont(fontPath, fontSize)
-inspectScoreFrame.scoreValueText:SetTextColor(1, 1, 1)
-inspectScoreFrame.scoreValueText:SetPoint("BOTTOMLEFT", inspectScoreFrame.text, "BOTTOMLEFT", 0, 10)
-
-
-local function OnInspectFrameShow()
-    isManualInspect = true
+    return frame
 end
 
-local function OnInspectFrameHide()
-    isManualInspect = false
-end
+scoreFrame = CreateGearScoreFrame("GearScoreDisplay", PaperDollFrame, "BOTTOMLEFT", "BOTTOMLEFT", 0, 0, 73, 225)
+inspectScoreFrame = CreateGearScoreFrame("InspectGearScoreDisplay", InspectFrame, "BOTTOMLEFT", "BOTTOMLEFT", 0, 0, 73, 130)
 
+
+-- Returns in r g b values from 0.0 - 1.0
 local function GetColorForGearScore(gearScore)
     local percentile = gearScore / MAX_GEAR_SCORE * 100
 
@@ -129,6 +108,7 @@ local function GetColorForGearScore(gearScore)
     end
 end
 
+-- Returns the color string which can be used in text formatting
 local function GetColorForGearScoreText(gearScore)
     local percentile = gearScore / MAX_GEAR_SCORE * 100
 
@@ -149,6 +129,7 @@ local function GetColorForGearScoreText(gearScore)
     end
 end
 
+-- Tries to find the enchant id from an itemLink
 local function GetEnchantIDFromItemLink(itemLink)
     local enchantID = itemLink:match("item:%d+:(%d+)")
     return tonumber(enchantID)  -- Convert to number, will be nil if no enchantment
@@ -165,7 +146,7 @@ local function CalculateItemScore(itemLink)
 
     local enchantID = GetEnchantIDFromItemLink(itemLink)
     -- Check for enchantment
-    local enchantModifier = enchantID and enchantID > 0 and enchantmentModifier or 1
+    local enchantModifier = enchantID and enchantID > 0 and GS_ENCHANT_MODIFIER or 1
 
     -- Double item level for two-handed weapons
     local adjustedItemLevel = itemLevel
@@ -176,7 +157,6 @@ local function CalculateItemScore(itemLink)
     -- Calculate score for this item
     return (itemLevel / rarityModifier) * slotModifier * enchantModifier * GLOBAL_SCALE, adjustedItemLevel
 end
-
 
 local function CalculateGearScoreAndAverageItemLevel(unit)
     local totalScore = 0
@@ -213,17 +193,27 @@ local function CalculateAndCacheGearScore(unit)
     local gearScore, avgItemLevel, itemMissing = CalculateGearScoreAndAverageItemLevel(unit)
     local guid = UnitGUID(unit)
     if guid and gearScore and avgItemLevel then
-        local cachedData = gearScoreCache[guid]
+        local cachedData = GEAR_SCORE_CACHE[guid]
         if not cachedData or cachedData[1] ~= gearScore or cachedData[2] ~= avgItemLevel then
             -- Update cache if it's a new entry or if the gear score or avg item level has changed
-            gearScoreCache[guid] = {gearScore, avgItemLevel}
+            GEAR_SCORE_CACHE[guid] = { gearScore, avgItemLevel }
         end
     end
     return gearScore, avgItemLevel, itemMissing
 end
 
-local function UpdateFrame(frame, unit)
-    local score, avgItemLevel,_ = CalculateAndCacheGearScore(unit)
+
+
+function GearScoreCalc.OnInspectFrameShow()
+    IS_MANUAL_INSPECT_ACTIVE = true
+end
+
+function GearScoreCalc.OnInspectFrameHide()
+    IS_MANUAL_INSPECT_ACTIVE = false
+end
+
+function GearScoreCalc.UpdateFrame(frame, unit)
+    local score, avgItemLevel, _ = CalculateAndCacheGearScore(unit)
     local r, g, b = GetColorForGearScore(score)
 
     -- Set the numerical gear score with color
@@ -234,17 +224,17 @@ local function UpdateFrame(frame, unit)
     frame.avgItemLevelText:SetText(math.floor(avgItemLevel + 0.5) .. "\niLvl:")
 end
 
-local function OnPlayerEquipmentChanged()
+function GearScoreCalc.OnPlayerEquipmentChanged()
     UpdateFrame(scoreFrame, "player")
 end
 
-local function AddGearScoreToTooltip(tooltip, unit)
+function GearScoreCalc.AddGearScoreToTooltip(tooltip, unit)
     if unit then
         local guid = UnitGUID(unit)
         local gearScore, avgItemLevel
 
         -- First, try to use the cached data if it exists
-        local cachedData = gearScoreCache[guid]
+        local cachedData = GEAR_SCORE_CACHE[guid]
         if cachedData then
             gearScore, avgItemLevel = unpack(cachedData)
         end
@@ -258,77 +248,31 @@ local function AddGearScoreToTooltip(tooltip, unit)
     end
 end
 
-local function OnInspectReady(inspectGUID)
+function GearScoreCalc.OnInspectReady(inspectGUID)
     if lastInspection and UnitGUID(lastInspection) == inspectGUID then
         local gs, avg, itemMissing = CalculateGearScoreAndAverageItemLevel(lastInspection)
 
         if itemMissing then
-            inspectRetryCount[inspectGUID] = (inspectRetryCount[inspectGUID] or 0) + 1
+            INSPECT_RETRIES[inspectGUID] = (INSPECT_RETRIES[inspectGUID] or 0) + 1
 
-            if inspectRetryCount[inspectGUID] <= MAX_RETRIES then
+            if INSPECT_RETRIES[inspectGUID] <= MAX_RETRIES then
                 C_Timer.After(INSPECT_RETRY_DELAY, function()
                     NotifyInspect(lastInspection)
                 end)
             else
-                gearScoreCache[inspectGUID] = {gs, avg}
-                AddGearScoreToTooltip(GameTooltip, lastInspection)
+                GEAR_SCORE_CACHE[inspectGUID] = { gs, avg }
+                GearScoreCalc.AddGearScoreToTooltip(GameTooltip, lastInspection)
                 lastInspection = nil
-                inspectRetryCount[inspectGUID] = nil
+                INSPECT_RETRIES[inspectGUID] = nil
             end
         else
-            gearScoreCache[inspectGUID] = {gs, avg}
-            AddGearScoreToTooltip(GameTooltip, lastInspection)
-            inspectRetryCount[inspectGUID] = nil
+            GEAR_SCORE_CACHE[inspectGUID] = { gs, avg }
+            GearScoreCalc.AddGearScoreToTooltip(GameTooltip, lastInspection)
+            INSPECT_RETRIES[inspectGUID] = nil
         end
     end
 end
 
 
 
--- Event handling
-local frame = CreateFrame("Frame")
-frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-frame:RegisterEvent("INSPECT_READY")
-
-frame:SetScript("OnEvent", function(self, event,inspectGUID)
-    if event == "PLAYER_EQUIPMENT_CHANGED" then
-        OnPlayerEquipmentChanged()
-    elseif event == "INSPECT_READY" then
-        C_Timer.After(0.2, function()
-            OnInspectReady(inspectGUID)
-        end)
-    end
-end)
-
-InspectFrame:HookScript("OnHide", OnInspectFrameHide)
-
-CharacterFrame:HookScript("OnShow", function()
-    UpdateFrame(scoreFrame, "player")
-end)
-
-InspectFrame:HookScript("OnShow", function()
-    OnInspectFrameShow()
-    if InspectFrame.unit then
-        UpdateFrame(inspectScoreFrame, InspectFrame.unit)
-    end
-end)
-
-
-GameTooltip:HookScript("OnTooltipSetUnit", function(self)
-    local _, unit = self:GetUnit()
-    if unit and UnitIsPlayer(unit) then
-        local guid = UnitGUID(unit)
-        local cachedData = gearScoreCache[guid]
-
-        lastInspection = unit
-        AddGearScoreToTooltip(self, unit)
-
-        if not isManualInspect  then
-            if CheckInteractDistance(unit, "1") and not cachedData then
-                NotifyInspect(unit)
-            end
-        end
-
-    end
-end)
 
