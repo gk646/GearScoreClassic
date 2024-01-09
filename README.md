@@ -13,7 +13,7 @@ GearScoreClassic+
 **GearScoreClassic+ is a maintained addon for World of Warcraft Classic (Season of Discovery). It is designed to calculate and display a gear score (GS) for both your character and any character you inspect (or hover over).  
 It will be maintained and updated with new features for the upcoming phases with simplicity and efficiency in mind.**
 
-![CharacterFrame](https://media.forgecdn.net/attachments/thumbnails/786/431/310/172/gearscoreclassic.png)
+![CharacterFrame](pictures/GearScoreClassic+.png)
 
 
 ## Purpose
