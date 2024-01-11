@@ -2,10 +2,6 @@
 frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 frame:RegisterEvent("INSPECT_READY")
-frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-frame:RegisterEvent("UPDATE_BATTLEFIELD_SCORE")
-frame:RegisterEvent("PLAYER_LOGOUT")
-frame:RegisterEvent("ADDON_LOADED")
 
 frame:SetScript("OnEvent", function(self, event,  inspectGUID)
     if event == "PLAYER_EQUIPMENT_CHANGED" then
@@ -14,16 +10,11 @@ frame:SetScript("OnEvent", function(self, event,  inspectGUID)
         C_Timer.After(0.2, function()
             GearScoreCalc.OnInspectReady(inspectGUID)
         end)
-    elseif event == "PLAYER_ENTERING_WORLD" then
-        PVP_TRACKER.OnPlayerEnteringWorld()
-    elseif event == "PLAYER_LOGOUT" then
-        PVP_TRACKER.OnPlayerLogout()
-    elseif event == "UPDATE_BATTLEFIELD_SCORE" then
-        UpdateBattlegroundStats()
    end
 end)
 
 InspectFrame:HookScript("OnHide", GearScoreCalc.OnInspectFrameHide)
+
 InspectFrame:HookScript("OnShow", function()
     GearScoreCalc.OnInspectFrameShow()
     if InspectFrame.unit then
@@ -45,7 +36,12 @@ GameTooltip:HookScript("OnTooltipSetUnit", function(self)
 
         if not IS_MANUAL_INSPECT_ACTIVE then
             if CheckInteractDistance(initialUnit, "1") and not cachedData then
-                NotifyInspect(initialUnit)
+                C_Timer.After(0.2, function()
+                    local _, currentUnit = self:GetUnit()
+                    if currentUnit == initialUnit then
+                        NotifyInspect(currentUnit)
+                    end
+                end)
             end
         end
     end
