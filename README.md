@@ -4,7 +4,6 @@
 ![CurseForge Downloads](https://img.shields.io/curseforge/dt/958792)
 
 
-
 ### Download from the official [CurseForge website](https://www.curseforge.com/wow/addons/gearscoreclassic)
 
 
