@@ -3,14 +3,14 @@ frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 frame:RegisterEvent("INSPECT_READY")
 
-frame:SetScript("OnEvent", function(self, event,  inspectGUID)
+frame:SetScript("OnEvent", function(self, event, inspectGUID)
     if event == "PLAYER_EQUIPMENT_CHANGED" then
         GearScoreCalc.OnPlayerEquipmentChanged()
     elseif event == "INSPECT_READY" then
         C_Timer.After(0.2, function()
             GearScoreCalc.OnInspectReady(inspectGUID)
         end)
-   end
+    end
 end)
 
 InspectFrame:HookScript("OnHide", GearScoreCalc.OnInspectFrameHide)
@@ -46,3 +46,7 @@ GameTooltip:HookScript("OnTooltipSetUnit", function(self)
         end
     end
 end)
+
+-- Hook into item tooltips
+GameTooltip:HookScript("OnTooltipSetItem", GearScoreCalc.AppendItemScoreToTooltip)
+ItemRefTooltip:HookScript("OnTooltipSetItem", GearScoreCalc.AppendItemScoreToTooltip)

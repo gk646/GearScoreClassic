@@ -14,7 +14,7 @@ inspectScoreFrame = nil
 local fontPath = "Fonts\\FRIZQT__.TTF"  -- Standard WoW font
 local FONT_SIZE = 11  -- Adjust the font size as needed
 local GLOBAL_SCALE = 1.7
-local MAX_GEAR_SCORE = 350  -- Maximum reachable gearscore
+local MAX_GEAR_SCORE = 530 -- Phase1: 350  -- Maximum reachable gearscore
 local GS_ENCHANT_MODIFIER = 1.05  -- 5% increase for enchanted items
 local MAX_RETRIES = 3
 local INSPECT_RETRY_DELAY = 0.2
@@ -171,7 +171,6 @@ local function CalculateGearScoreAndAverageItemLevel(unit)
             if itemLink then
                 local itemScore, iLevel = CalculateItemScore(itemLink)
                 totalScore = totalScore + itemScore
-
                 if iLevel and iLevel > 0 then
                     totalItemLevel = totalItemLevel + iLevel
                 end
@@ -184,7 +183,6 @@ local function CalculateGearScoreAndAverageItemLevel(unit)
             end
         end
     end
-
     local avgItemLevel = (totalItemLevel / TOTAL_EQUIPPABLE_SLOTS) or 0
     return totalScore, avgItemLevel, itemMissing
 end
@@ -201,8 +199,6 @@ local function CalculateAndCacheGearScore(unit)
     end
     return gearScore, avgItemLevel, itemMissing
 end
-
-
 
 function GearScoreCalc.OnInspectFrameShow()
     IS_MANUAL_INSPECT_ACTIVE = true
@@ -221,7 +217,7 @@ function GearScoreCalc.UpdateFrame(frame, unit)
     frame.scoreValueText:SetText(math.floor(score + 0.5))
 
     -- Set the average item level text
-    frame.avgItemLevelText:SetText(math.floor(avgItemLevel + 0.5) .. "\niLvl:")
+    frame.avgItemLevelText:SetText(math.floor(avgItemLevel + 0.5) .. "\niLvl")
 end
 
 function GearScoreCalc.OnPlayerEquipmentChanged()
@@ -233,13 +229,13 @@ function GearScoreCalc.AddGearScoreToTooltip(tooltip, unit)
         local guid = UnitGUID(unit)
         local gearScore, avgItemLevel
 
-        -- First, try to use the cached data if it exists
+        -- Get cached data
         local cachedData = GEAR_SCORE_CACHE[guid]
         if cachedData then
             gearScore, avgItemLevel = unpack(cachedData)
         end
 
-        -- Finally, display the gear score if available
+        -- Display the gearscore
         if gearScore and gearScore > 0 then
             local color = GetColorForGearScoreText(gearScore)
             tooltip:AddLine("Gear Score: " .. color .. math.floor(gearScore + 0.5))
@@ -275,6 +271,15 @@ function GearScoreCalc.OnInspectReady(inspectGUID)
     end
 end
 
-
-
-
+function GearScoreCalc.AppendItemScoreToTooltip(tooltip)
+    local _, itemLink = tooltip:GetItem()
+    if itemLink and IsEquippableItem(itemLink) then
+        local score = CalculateItemScore(itemLink)
+        local itemName, _, _, itemLevel = GetItemInfo(itemLink)
+        if score then
+            tooltip:AddLine("GearScore: " .. math.floor(score))
+            tooltip:AddLine("iLvl: " .. itemLevel)
+            tooltip:Show()
+        end
+    end
+end
