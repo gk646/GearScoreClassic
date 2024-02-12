@@ -1,4 +1,4 @@
-## Interface: 11500
+## Interface: 11501
 ## Title: GearScoreClassic+
 ## Notes: Calculates gearscore, a general metric for itemization strength
 ## Version: 1.2
