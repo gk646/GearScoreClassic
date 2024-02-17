@@ -2,7 +2,6 @@
 frame = CreateFrame("Frame")
 frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 frame:RegisterEvent("INSPECT_READY")
-
 frame:SetScript("OnEvent", function(self, event, inspectGUID)
     if event == "PLAYER_EQUIPMENT_CHANGED" then
         GearScoreCalc.OnPlayerEquipmentChanged()
