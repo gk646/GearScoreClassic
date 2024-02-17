@@ -12,7 +12,7 @@ scoreFrame = nil
 inspectScoreFrame = nil
 
 local fontPath = "Fonts\\FRIZQT__.TTF"  -- Standard WoW font
-local FONT_SIZE = 11  -- Adjust the font size as needed
+local FONT_SIZE = 11  
 local GLOBAL_SCALE = 1.7
 local MAX_GEAR_SCORE = 530 -- Phase1: 350  -- Maximum reachable gearscore
 local GS_ENCHANT_MODIFIER = 1.05  -- 5% increase for enchanted items
@@ -20,6 +20,9 @@ local MAX_RETRIES = 3
 local INSPECT_RETRY_DELAY = 0.2
 local INSPECT_RETRIES = {}
 local TOTAL_EQUIPPABLE_SLOTS = 17
+local ADDON_VERSION = 1.4
+
+print("|cFFFFFF00" .. "GearScoreClassic+ " .. "|r" .. "|cFF00FF00" .. ADDON_VERSION .. "|r" .. "|cFFFFFF00" .. " by " .. "|r" .. "|cFFFFA500" .. "Pewpéw-LivingFlame" .. "|r")
 
 local itemTypeInfo = {
     ["INVTYPE_RELIC"] = { 0.3164, false },
@@ -29,7 +32,7 @@ local itemTypeInfo = {
     ["INVTYPE_WEAPONOFFHAND"] = { 1.0000, true },
     ["INVTYPE_RANGED"] = { 0.3164, true },
     ["INVTYPE_THROWN"] = { 0.3164, false },
-    ["INVTYPE_RANGEDRIGHT"] = { 0.3164, false },
+    ["INVTYPE_RANGEDRIGHT"] = { 0.3164, true },
     ["INVTYPE_SHIELD"] = { 1.0000, true },
     ["INVTYPE_WEAPON"] = { 1.0000, true },
     ["INVTYPE_HOLDABLE"] = { 1.0000, false },
@@ -47,6 +50,8 @@ local itemTypeInfo = {
     ["INVTYPE_CLOAK"] = { 0.5625, true },
     ["INVTYPE_BODY"] = { 0, false },
     ["INVTYPE_TABARD"] = { 0, false },
+    ["INVTYPE_AMMO"] = { 0, false },
+    ["INVTYPE_BAG"] = { 0, false },
 }
 
 local rarityModifiers = {
@@ -135,23 +140,45 @@ local function GetEnchantIDFromItemLink(itemLink)
     return tonumber(enchantID)  -- Convert to number, will be nil if no enchantment
 end
 
+-- Custom rules for specific classes
+local function CustomRulesSlotModifier(slotModifier,itemEquipLoc, classToken)
+    if classToken == "HUNTER" then
+        if itemEquipLoc == "INVTYPE_WEAPONMAINHAND" then
+            return slotModifier - 0.5
+        elseif itemEquipLoc == "INVTYPE_WEAPONOFFHAND" then
+            return slotModifier  - 0.5
+        elseif itemEquipLoc == "INVTYPE_2HWEAPON" then
+            return slotModifier - 1
+        elseif itemEquipLoc == "INVTYPE_RANGED" or itemEquipLoc == "INVTYPE_RANGEDRIGHT" then
+            return slotModifier + 1
+        end
+    end
+    return slotModifier
+end
+
 --Calculates the score of a single individual item
-local function CalculateItemScore(itemLink)
+local function CalculateItemScore(itemLink, classToken)
     if not itemLink then
         return 0, 0
     end
     local _, _, itemRarity, itemLevel, _, _, _, _, itemEquipLoc = GetItemInfo(itemLink)
-    local slotModifier = itemTypeInfo[itemEquipLoc][1] or 1
-    local rarityModifier = rarityModifiers[itemRarity] or 1
+    local slotModifier = itemTypeInfo[itemEquipLoc][1] or 0
+    local isEnchantable = itemTypeInfo[itemEquipLoc][2] or false
+    local rarityModifier = rarityModifiers[itemRarity] or 0
 
-    local enchantID = GetEnchantIDFromItemLink(itemLink)
+    slotModifier = CustomRulesSlotModifier(slotModifier, itemEquipLoc , classToken)
+
+    local enchantID = nil
+    if isEnchantable then
+        enchantID = GetEnchantIDFromItemLink(itemLink)
+    end
     -- Check for enchantment
     local enchantModifier = enchantID and enchantID > 0 and GS_ENCHANT_MODIFIER or 1
 
-    -- Double item level for two-handed weapons
+    -- Adjust item level for two-handed weapons
     local adjustedItemLevel = itemLevel
     if itemEquipLoc == "INVTYPE_2HWEAPON" then
-        adjustedItemLevel = itemLevel * 2
+        adjustedItemLevel = (itemLevel* 1.0625) * 2 
     end
 
     -- Calculate score for this item
@@ -162,6 +189,7 @@ local function CalculateGearScoreAndAverageItemLevel(unit)
     local totalScore = 0
     local totalItemLevel = 0
     local itemMissing = false
+    local _, classToken = UnitClass(unit)
 
     -- Loop through all the equipment slots
     for i = 1, 19 do
@@ -169,7 +197,7 @@ local function CalculateGearScoreAndAverageItemLevel(unit)
         if i ~= 4 and i ~= 19 then
             local itemLink = GetInventoryItemLink(unit, i)
             if itemLink then
-                local itemScore, iLevel = CalculateItemScore(itemLink)
+                local itemScore, iLevel = CalculateItemScore(itemLink, classToken)
                 totalScore = totalScore + itemScore
                 if iLevel and iLevel > 0 then
                     totalItemLevel = totalItemLevel + iLevel
