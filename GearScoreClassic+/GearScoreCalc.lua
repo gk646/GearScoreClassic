@@ -22,8 +22,7 @@ local MAX_RETRIES = 3
 local INSPECT_RETRY_DELAY = 0.2
 local INSPECT_RETRIES = {}
 local TOTAL_EQUIPPABLE_SLOTS = 17
-local ADDON_VERSION = 1.4
-
+local ADDON_VERSION = 1.5
 
 print("|cFFFFFF00" .. "GearScoreClassic+ " .. "|r" .. "|cFF00FF00" .. ADDON_VERSION .. "|r" .. "|cFFFFFF00" .. " by " .. "|r" .. "|cFFFFA500" .. "Pewpéw-LivingFlame" .. "|r")
 

@@ -1,7 +1,7 @@
 ## Interface: 11501
 ## Title: GearScoreClassic+
 ## Notes: Calculates gearscore, a general metric for itemization strength
-## Version: 1.2
+## Version: 1.5
 ## Author: gk646
 ## SavedVariables:
 
