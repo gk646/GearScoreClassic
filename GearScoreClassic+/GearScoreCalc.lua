@@ -10,9 +10,11 @@ GEAR_SCORE_CACHE = {}
 -- Create frames for character and inspect windows
 scoreFrame = nil
 inspectScoreFrame = nil
+local _, PLAYER_CLASS = UnitClass("player")
+
 
 local fontPath = "Fonts\\FRIZQT__.TTF"  -- Standard WoW font
-local FONT_SIZE = 11  
+local FONT_SIZE = 11
 local GLOBAL_SCALE = 1.7
 local MAX_GEAR_SCORE = 530 -- Phase1: 350  -- Maximum reachable gearscore
 local GS_ENCHANT_MODIFIER = 1.05  -- 5% increase for enchanted items
@@ -21,6 +23,7 @@ local INSPECT_RETRY_DELAY = 0.2
 local INSPECT_RETRIES = {}
 local TOTAL_EQUIPPABLE_SLOTS = 17
 local ADDON_VERSION = 1.4
+
 
 print("|cFFFFFF00" .. "GearScoreClassic+ " .. "|r" .. "|cFF00FF00" .. ADDON_VERSION .. "|r" .. "|cFFFFFF00" .. " by " .. "|r" .. "|cFFFFA500" .. "Pewpéw-LivingFlame" .. "|r")
 
@@ -141,14 +144,16 @@ local function GetEnchantIDFromItemLink(itemLink)
 end
 
 -- Custom rules for specific classes
-local function CustomRulesSlotModifier(slotModifier,itemEquipLoc, classToken)
+local function CustomRulesSlotModifier(slotModifier, itemEquipLoc, classToken)
     if classToken == "HUNTER" then
         if itemEquipLoc == "INVTYPE_WEAPONMAINHAND" then
             return slotModifier - 0.5
         elseif itemEquipLoc == "INVTYPE_WEAPONOFFHAND" then
-            return slotModifier  - 0.5
+            return slotModifier - 0.5
         elseif itemEquipLoc == "INVTYPE_2HWEAPON" then
             return slotModifier - 1
+        elseif itemEquipLoc == "INVTYPE_WEAPON" then
+            return slotModifier - 0.5
         elseif itemEquipLoc == "INVTYPE_RANGED" or itemEquipLoc == "INVTYPE_RANGEDRIGHT" then
             return slotModifier + 1
         end
@@ -166,7 +171,7 @@ local function CalculateItemScore(itemLink, classToken)
     local isEnchantable = itemTypeInfo[itemEquipLoc][2] or false
     local rarityModifier = rarityModifiers[itemRarity] or 0
 
-    slotModifier = CustomRulesSlotModifier(slotModifier, itemEquipLoc , classToken)
+    slotModifier = CustomRulesSlotModifier(slotModifier, itemEquipLoc, classToken)
 
     local enchantID = nil
     if isEnchantable then
@@ -178,7 +183,7 @@ local function CalculateItemScore(itemLink, classToken)
     -- Adjust item level for two-handed weapons
     local adjustedItemLevel = itemLevel
     if itemEquipLoc == "INVTYPE_2HWEAPON" then
-        adjustedItemLevel = (itemLevel* 1.0625) * 2 
+        adjustedItemLevel = (itemLevel * 1.0625) * 2
     end
 
     -- Calculate score for this item
@@ -302,7 +307,7 @@ end
 function GearScoreCalc.AppendItemScoreToTooltip(tooltip)
     local _, itemLink = tooltip:GetItem()
     if itemLink and IsEquippableItem(itemLink) then
-        local score = CalculateItemScore(itemLink)
+        local score = CalculateItemScore(itemLink,PLAYER_CLASS)
         local itemName, _, _, itemLevel = GetItemInfo(itemLink)
         if score then
             tooltip:AddLine("GearScore: " .. math.floor(score))
