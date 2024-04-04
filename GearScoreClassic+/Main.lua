@@ -34,7 +34,7 @@ GameTooltip:HookScript("OnTooltipSetUnit", function(self)
         GearScoreCalc.AddGearScoreToTooltip(self, initialUnit)
 
         if not IS_MANUAL_INSPECT_ACTIVE then
-            if CheckInteractDistance(initialUnit, "1") and not cachedData then
+            if not InCombatLockdown() and CheckInteractDistance(initialUnit, "1") and not cachedData then
                 C_Timer.After(0.2, function()
                     local _, currentUnit = self:GetUnit()
                     if currentUnit == initialUnit then
