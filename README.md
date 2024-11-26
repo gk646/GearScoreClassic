@@ -1,4 +1,4 @@
-![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
+![Maintained](https://img.shields.io/badge/Maintained%3F-no-red.svg)
 ![WoW Classic](https://img.shields.io/badge/WoW%20Classic-v1.15.1-9cf.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![CurseForge Downloads](https://img.shields.io/curseforge/dt/958792)
