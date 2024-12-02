@@ -26,7 +26,7 @@ end)
 
 GameTooltip:HookScript("OnTooltipSetUnit", function(self)
     local _, initialUnit = self:GetUnit()
-    if initialUnit and UnitIsPlayer(initialUnit) then
+    if initialUnit and UnitIsPlayer(initialUnit) and not InCombatLockdown() then
         local guid = UnitGUID(initialUnit)
         local cachedData = GEAR_SCORE_CACHE[guid]
 
