@@ -16,7 +16,7 @@ local _, PLAYER_CLASS = UnitClass("player")
 local fontPath = "Fonts\\FRIZQT__.TTF"  -- Standard WoW font
 local FONT_SIZE = 11
 local GLOBAL_SCALE = 1.7
-local MAX_GEAR_SCORE = 530 -- Phase1: 350  -- Maximum reachable gearscore
+local MAX_GEAR_SCORE = 1000  -- Phase2: 530 -- Phase1: 350  -- Maximum reachable gearscore
 local GS_ENCHANT_MODIFIER = 1.05  -- 5% increase for enchanted items
 local MAX_RETRIES = 3
 local INSPECT_RETRY_DELAY = 0.2
@@ -24,7 +24,7 @@ local INSPECT_RETRIES = {}
 local TOTAL_EQUIPPABLE_SLOTS = 17
 local ADDON_VERSION = 1.5
 
-print("|cFFFFFF00" .. "GearScoreClassic+ " .. "|r" .. "|cFF00FF00" .. ADDON_VERSION .. "|r" .. "|cFFFFFF00" .. " by " .. "|r" .. "|cFFFFA500" .. "Pewpéw-LivingFlame" .. "|r")
+print("|cFFFFFF00" .. "GearScoreClassic+ " .. "|r" .. "|cFF00FF00" .. ADDON_VERSION .. "|r" .. "|cFFFFFF00" .. " by " .. "|r" .. "|cFFFFA500" .. "gk646" .. "|r")
 
 local itemTypeInfo = {
     ["INVTYPE_RELIC"] = { 0.3164, false },
