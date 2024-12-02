@@ -1,4 +1,4 @@
-![Maintained](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
+![Maintained](https://img.shields.io/badge/Maintained%3F-no-red.svg)
 ![WoW Classic](https://img.shields.io/badge/WoW%20Classic-v1.15.1-9cf.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![CurseForge Downloads](https://img.shields.io/curseforge/dt/958792)
@@ -6,14 +6,15 @@
 
 ### Download from the official [CurseForge website](https://www.curseforge.com/wow/addons/gearscoreclassic)
 
+> Note:
+> As i quite WOW i do not have the capacity to update this. I will happily merge fixes and expansions tho!
 
 ### This addon can be used instead of other popular gearscore addons as it produces similar values but fixes some bugs in the calculation process.  
 --- 
 GearScoreClassic+
 ------------------
 
-**GearScoreClassic+ is a maintained addon for World of Warcraft Classic (Season of Discovery). It is designed to calculate and display a gear score (GS) for both your character and any character you inspect (or hover over).  
-It will be maintained and updated with new features for the upcoming phases with simplicity and efficiency in mind.**
+**GearScoreClassic+ is a addon for World of Warcraft Classic (Season of Discovery). It is designed to calculate and display a gear score (GS) for both your character and any character you inspect (or hover over).**
 
 ![CharacterFrame](pictures/GearScoreClassic+.png)
 
