@@ -4,7 +4,7 @@ end
 
 GearScoreCalc = {}
 
-IS_MANUAL_INSPECT_ACTIVE = false
+
 GEAR_SCORE_CACHE = {}
 
 -- Create frames for character and inspect windows
@@ -12,7 +12,7 @@ scoreFrame = nil
 inspectScoreFrame = nil
 local _, PLAYER_CLASS = UnitClass("player")
 
-
+IS_MANUAL_INSPECT_ACTIVE = false
 local fontPath = "Fonts\\FRIZQT__.TTF"  -- Standard WoW font
 local FONT_SIZE = 11
 local GLOBAL_SCALE = 1.7
