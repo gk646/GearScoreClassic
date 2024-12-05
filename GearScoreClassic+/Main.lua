@@ -1,8 +1,8 @@
 -- Event handling
-frame = CreateFrame("Frame")
-frame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-frame:RegisterEvent("INSPECT_READY")
-frame:SetScript("OnEvent", function(self, event, inspectGUID)
+gearScoreFrame = CreateFrame("Frame")
+gearScoreFrame:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+gearScoreFrame:RegisterEvent("INSPECT_READY")
+gearScoreFrame:HookScript("OnEvent", function(self, event, inspectGUID)
     if event == "PLAYER_EQUIPMENT_CHANGED" then
         GearScoreCalc.OnPlayerEquipmentChanged()
     elseif event == "INSPECT_READY" then
