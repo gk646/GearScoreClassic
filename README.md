@@ -7,7 +7,7 @@
 ### Download from the official [CurseForge website](https://www.curseforge.com/wow/addons/gearscoreclassic)
 
 > Note:
-> As i quite WOW i do not have the capacity to update this. I will happily merge fixes and expansions tho!
+> As i quit WOW i do not have the capacity to update this. I will happily merge fixes and expansions tho!
 
 ### This addon can be used instead of other popular gearscore addons as it produces similar values but fixes some bugs in the calculation process.  
 --- 
