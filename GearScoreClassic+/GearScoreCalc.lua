@@ -165,27 +165,46 @@ local function CalculateItemScore(itemLink, classToken)
     if not itemLink then
         return 0, 0
     end
+
+    -- Check if item data is loaded before proceeding
+    if not GetItemInfo(itemLink) then
+        -- If not, delay and retry later to prevent nil access errors
+        C_Timer.After(0.2, function()
+            CalculateItemScore(itemLink, classToken)
+        end)
+        return 0, 0
+    end
+
     local _, _, itemRarity, itemLevel, _, _, _, _, itemEquipLoc = GetItemInfo(itemLink)
-    local slotModifier = itemTypeInfo[itemEquipLoc][1] or 0
-    local isEnchantable = itemTypeInfo[itemEquipLoc][2] or false
+
+    --  Defensive check in case GetItemInfo still returned nil values
+    if not itemRarity or not itemLevel or not itemEquipLoc then
+        return 0, 0
+    end
+
+    local slotData = itemTypeInfo[itemEquipLoc]
+    if not slotData then
+        return 0, 0
+    end
+
+    local slotModifier = slotData[1]
+    local isEnchantable = slotData[2]
     local rarityModifier = rarityModifiers[itemRarity] or 0
 
     slotModifier = CustomRulesSlotModifier(slotModifier, itemEquipLoc, classToken)
 
-    local enchantID = nil
+    local enchantID
     if isEnchantable then
         enchantID = GetEnchantIDFromItemLink(itemLink)
     end
-    -- Check for enchantment
+
     local enchantModifier = enchantID and enchantID > 0 and GS_ENCHANT_MODIFIER or 1
 
-    -- Adjust item level for two-handed weapons
     local adjustedItemLevel = itemLevel
     if itemEquipLoc == "INVTYPE_2HWEAPON" then
         adjustedItemLevel = (itemLevel * 1.0625) * 2
     end
 
-    -- Calculate score for this item
     return (itemLevel / rarityModifier) * slotModifier * enchantModifier * GLOBAL_SCALE, adjustedItemLevel
 end
 
