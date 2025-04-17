@@ -160,25 +160,20 @@ local function CustomRulesSlotModifier(slotModifier, itemEquipLoc, classToken)
     return slotModifier
 end
 
---Calculates the score of a single individual item
+-- Calculates the score of a single individual item
 local function CalculateItemScore(itemLink, classToken)
     if not itemLink then
         return 0, 0
     end
 
-    -- Check if item data is loaded before proceeding
-    if not GetItemInfo(itemLink) then
-        -- If not, delay and retry later to prevent nil access errors
+    -- Call GetItemInfo only once and store all return values
+    local itemName, _, itemRarity, itemLevel, _, _, _, _, itemEquipLoc = GetItemInfo(itemLink)
+
+    -- If data is not ready, retry later
+    if not itemName or not itemRarity or not itemLevel or not itemEquipLoc then
         C_Timer.After(0.2, function()
             CalculateItemScore(itemLink, classToken)
         end)
-        return 0, 0
-    end
-
-    local _, _, itemRarity, itemLevel, _, _, _, _, itemEquipLoc = GetItemInfo(itemLink)
-
-    --  Defensive check in case GetItemInfo still returned nil values
-    if not itemRarity or not itemLevel or not itemEquipLoc then
         return 0, 0
     end
 
